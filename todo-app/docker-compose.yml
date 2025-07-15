@@ -1,26 +1,10 @@
-version: '3.9'
+version: "3.9"
 services:
-  backend:
-    build: ./backend
-    volumes:
-      - ./backend:/app
-    ports:
-      - "8000:8000"
-    depends_on:
-      - db
-      - redis
-
-  frontend:
-    build: ./frontend
-    ports:
-      - "3000:3000"
-    stdin_open: true
-    tty: true
-
   db:
-    image: postgres
+    image: postgres:16
+    restart: always
     environment:
-      POSTGRES_DB: todo_db
+      POSTGRES_DB: tododb
       POSTGRES_USER: user
       POSTGRES_PASSWORD: password
     ports:
@@ -31,9 +15,32 @@ services:
     ports:
       - "6379:6379"
 
+  backend:
+    build: ./backend
+    volumes:
+      - ./backend:/app
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://user:password@db:5432/tododb
+    depends_on:
+      - db
+      - redis
+
   celery:
     build: ./backend
-    command: celery -A tasks worker --loglevel=info
+    command: celery -A app.celery_worker.celery worker --loglevel=info
     depends_on:
       - redis
-      - db
+      - backend
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+    stdin_open: true
+    tty: true
+    depends_on:
+      - backend
